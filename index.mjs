@@ -1,5 +1,6 @@
  import chalks from 'chalk';
 //const {Mongoclient} = require('mongodb');
+import mongodb from 'mongodb'
 import {ListCollectionsCursor, MongoClient} from 'mongodb'
 const uri = "mongodb://0.0.0.0:27017";
 
@@ -37,7 +38,46 @@ const insertNote = async (db, collectionName, note) => {
     }
 }
 
-insertNote(db, "Notes App", {
-    title: "Monday Tasks",
-    body: "Wake up and the smell the coffee"
-})
+// insertNote(db, "Notes App", {
+//     title: "Monday Tasks",
+//     body: "Wake up and the smell the coffee"
+// })
+
+
+const findNote = async (db, collectionName, query) => {
+    await client.connect();
+    const collection = db.collection(collectionName);
+    try{
+        const result = await collection.find({query}).toArray();
+        console.log(chalks.green("Note Found", result));
+    } catch (err) {
+        console.log(chalks.red("Error Finding Note", err));
+    }
+    finally{
+        await client.close();
+    }
+    
+}
+
+// findNote(db, "Notes App", {
+//     title:"Monday Tasks"}) 
+const updateNote = async (db, collectionName, selectionQuery, updateQuery) =>{
+    
+        try {
+            await client.connect();
+            const collection = db.collection(collectionName);
+            await collection.updateOne(selectionQuery, {$push: updateQuery});
+            console.log(chalks.greenBright("Document updated Successfully"));
+    
+    
+      }
+      catch (err){
+        console.log("Error updating document", err);
+    
+      }
+    finally {
+        await client.close();
+    };
+      };
+
+updateNote(db, "Notes App", {_id: new mongodb.ObjectId("64ef1a62318c8eb1920c4f79")}, {remark: "Today was awesome"});
