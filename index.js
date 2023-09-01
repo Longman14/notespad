@@ -1,13 +1,15 @@
  import chalks from 'chalk';
-//const {Mongoclient} = require('mongodb');
 import mongodb, { ObjectId } from 'mongodb'
 import {ListCollectionsCursor, MongoClient} from 'mongodb'
 import yargs from 'yargs';
-import {hideBin} from "yargs/helpers"
+import {hideBin} from "yargs/helpers";
+import {readFile, writeFile} from 'fs';
 const uri = "mongodb://0.0.0.0:27017";
+import fs from 'fs';
 
 const client = new MongoClient(uri);
 const db = client.db("MiniProject");
+
 
 
 
@@ -15,14 +17,6 @@ console.log(chalks.yellow("Welcome to Notes. Allow me to take down your thoughts
 
 
 
-//console.log(findPos)
-
-
-
- 
-
-
-//console.log(title)
 
 const createCollection = async (db, collectionName) =>{
     try{
@@ -56,12 +50,7 @@ const insertNote = async (db, collectionName, note) => {
     }
 }
 
-// insertNote(db, "Notes App", {
-//     title: "Monday Tasks",
-//     body: "Wake up and the smell the coffee",
-//     remark: "Today was a great day"
 
-// })
 
 
 const findNote = async (db, collectionName, query) => {
@@ -138,9 +127,14 @@ let findPos = commandz._;
             title: title,
             body: body
         };
+        const noteString = note.toString();
+        const options = {encoding: 'utf8'};
         if(findPos == "add"){
             console.log(chalks.blue("Adding a new note"));
-           
+           fs.writeFile('Notes app.txt', noteString, options ,(err)=>{
+            if(err) throw err;
+            console.log(chalks.green(`file has been created and ${title} added`));
+           })
             insertNote(db, "Notes App", note);
             console.log(chalks.green(`${title} has been added successfully`));
         } else{
