@@ -2,10 +2,28 @@
 //const {Mongoclient} = require('mongodb');
 import mongodb, { ObjectId } from 'mongodb'
 import {ListCollectionsCursor, MongoClient} from 'mongodb'
+import yargs from 'yargs';
+import {hideBin} from "yargs/helpers"
 const uri = "mongodb://0.0.0.0:27017";
 
 const client = new MongoClient(uri);
-const db = client.db("MiniProject")
+const db = client.db("MiniProject");
+
+
+
+console.log(chalks.yellow("Welcome to Notes. Allow me to take down your thoughts and tasks"));
+
+
+
+//console.log(findPos)
+
+
+
+ 
+
+
+//console.log(title)
+
 const createCollection = async (db, collectionName) =>{
     try{
         await client.connect();
@@ -21,7 +39,7 @@ const createCollection = async (db, collectionName) =>{
     }
 }
 
-//createCollection(db,"Notes App" )
+//createCollection(db,"Notes App", {title: title} )
 
 const insertNote = async (db, collectionName, note) => {
 
@@ -104,6 +122,32 @@ finally {
 };
   };
 
-//   deleteNote(db, "Notes App", {_id: new mongodb.ObjectId('64ef1a62318c8eb1920c4f79')} )
+////////////////////////////////
+//Using Yargs to obtain the inputs from the CLi and Parsing it into the database
 
-//findNote(db, "Notes App", {title: "Monday Tasks"})
+yargs(hideBin(process.argv))
+    .command("add", "Add a new note",  {task:{type:'string'}}, (argv)=> 
+    {
+        const title = argv.title;
+        const body = argv.body;
+        const commandz = yargs(process.argv.slice(2)).argv;
+
+let findPos = commandz._;
+
+        const note = {
+            title: title,
+            body: body
+        };
+        if(findPos == "add"){
+            console.log(chalks.blue("Adding a new note"));
+           
+            insertNote(db, "Notes App", note);
+            console.log(chalks.green(`${title} has been added successfully`));
+        } else{
+            console.log("something is wrong")
+        }
+    }) 
+        
+    .parse();
+        
+   
