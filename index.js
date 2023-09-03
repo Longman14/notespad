@@ -1,14 +1,20 @@
  import chalks from 'chalk';
-import mongodb, { ObjectId } from 'mongodb'
-import {ListCollectionsCursor, MongoClient} from 'mongodb'
+
+import {MongoClient} from 'mongodb'
 import yargs from 'yargs';
 import {hideBin} from "yargs/helpers";
-import {readFile, writeFile} from 'fs';
 const uri = "mongodb://0.0.0.0:27017";
 import fs from 'fs';
+import {dirname, join}  from 'path';
+import { fileURLToPath } from 'url';
+import { argv } from 'process';
+
 
 const client = new MongoClient(uri);
 const db = client.db("MiniProject");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename)
+
 
 
 
@@ -33,7 +39,7 @@ const createCollection = async (db, collectionName) =>{
     }
 }
 
-//createCollection(db,"Notes App", {title: title} )
+
 
 const insertNote = async (db, collectionName, note) => {
 
@@ -42,9 +48,21 @@ const insertNote = async (db, collectionName, note) => {
     
     try{
         const result = await collection.insertOne(note);
-        console.log(chalks.green("Note Added", result.insertedId));
+        console.log(chalks.green("Note Added to the Database", result.insertedId));
     } catch(err) {
         console.log(chalks.red("Error Adding Note", err));
+    }finally{
+        await client.close();
+    }
+}
+const deleteNotedb = async (db, collectionName, doc2delete) => {
+    await client.connect();
+    const collection = db.collection(collectionName);
+    try{
+        const result = await collection.deleteOne(doc2delete);
+        console.log(chalks.green("Note Deleted from the Database"));
+    } catch(err) {
+        console.log(chalks.red("Error Deleting Note", err));
     }finally{
         await client.close();
     }
@@ -58,7 +76,7 @@ const findNote = async (db, collectionName, query) => {
     const collection = db.collection(collectionName);
     try{
         const result = await collection.find(query).toArray();
-        console.log(chalks.green("Note Found", result));
+        console.log(chalks.green("Note(s) Found in database", result));
     } catch (err) {
         console.log(chalks.red("Error Finding Note", err));
     }
@@ -68,48 +86,25 @@ const findNote = async (db, collectionName, query) => {
     
 }
 
-// findNote(db, "Notes App", {
-//     title:"Monday Tasks"}) 
-const updateNote = async (db, collectionName, selectionQuery, updateQuery) =>{
-    
-        try {
-            await client.connect();
-            const collection = db.collection(collectionName);
-            await collection.updateOne(selectionQuery, {$push: updateQuery});
-            console.log(chalks.greenBright("Document updated Successfully"));
-    
-    
-      }
-      catch (err){
-        console.log("Error updating document", err);
-    
-      }
-    finally {
-        await client.close();
-    };
-      };
 
-//updateNote(db, "Notes App", {_id: new mongodb.ObjectId("64ef1a62318c8eb1920c4f79")}, {remark: "Today was awesome"});
+    const dataFilePath = join(__dirname, 'Notes_app.json');
 
-const deleteNote = async (db, collectionName, selectionQuery) =>{
-    
-    try {
-        await client.connect();
-        const collection = db.collection(collectionName);
-        const result = await collection.deleteOne(selectionQuery);
-        console.log(chalks.red("Note deleted Successfully"));
-        console.log(chalks.red(`${result.deletedCount} note(s) deleted`));
+    function readEntries(){
+        try{
+            const data = fs.readFileSync(dataFilePath, 'utf8');
+            return JSON.parse(data);
+        }
+        catch (err){
+            return [];
+        }
+    }
+
+    function saveEntries(entries){
+        fs.writeFileSync(dataFilePath, JSON.stringify(entries, null, 2), 'utf8');
+    }
 
 
-  }
-  catch (err){
-    console.log("Error deleting note", err);
 
-  }
-finally {
-    await client.close();
-};
-  };
 
 ////////////////////////////////
 //Using Yargs to obtain the inputs from the CLi and Parsing it into the database
@@ -119,29 +114,85 @@ yargs(hideBin(process.argv))
     {
         const title = argv.title;
         const body = argv.body;
-        const commandz = yargs(process.argv.slice(2)).argv;
-
-let findPos = commandz._;
+        
 
         const note = {
             title: title,
             body: body
         };
-        const noteString = note.toString();
+        const noteString = JSON.stringify(note);
         const options = {encoding: 'utf8'};
-        if(findPos == "add"){
-            console.log(chalks.blue("Adding a new note"));
-           fs.writeFile('Notes app.txt', noteString, options ,(err)=>{
-            if(err) throw err;
-            console.log(chalks.green(`file has been created and ${title} added`));
-           })
-            insertNote(db, "Notes App", note);
-            console.log(chalks.green(`${title} has been added successfully`));
-        } else{
-            console.log("something is wrong")
-        }
-    }) 
         
-    .parse();
+
+        const entries = readEntries();
+        entries.push(note);
+        saveEntries(entries);
+        console.log(chalks.green('Note Taken'));
+        insertNote(db, "Notes App", note);
+
+        
+    
+    }
+    ) 
+    
+    //List command
+.command("list", "List all notes",{task:{type:'string'}}, (argv)=>{
+    const entries = readEntries();
+    if (entries.length === 0) {
+        console.log(chalks.red("No notes found"));
+    }else {
+        console.log(chalks.green("Notes Found"));
+                console.log(chalks.blue(`Notes: `));
+                entries.forEach((entry, index)=>{
+                   console.log(`${index +1}. Title: ${entry.title}, Body: ${entry.body}` ) ;
+
+                });
+    }
+     findNote(db, "Notes App", {})
+})
+//Delete Command
+.command("remove", "Remove a note", {task:{type:'string'}}, (argv)=>{
+    const entries = readEntries();
+        
+    const title = argv.title;
+    let index = entries.findIndex((entry) => entry.title == title);
+    
+    if (index<0){
+        console.log(chalks.red("Notes Does not Exist"));
+    }else{
+        const filteredNote = entries.filter((entry) => entry.title != title)
+        deleteNotedb(db, "Notes App", {title: title})
+    saveEntries(filteredNote);
+    console.log(chalks.green(`Deleted Note: ${title}`));
+    }
+    
+
+})
+//List Command
+.command('read', 'List a requested note by title', {task:{type:'string'}}, (argv)=>{
+
+    const title = argv.title;
+    // const body = argv.body;
+    const entries = readEntries();
+    const filteredNote = entries.filter((entry) => entry.title == title);
+    if (filteredNote.length === 0) {
+        console.log(chalks.red("Note Does not Exist"));
+    }else {
+        findNote(db, "Notes App", {title: title});
+        filteredNote.forEach((entry)=>{
+            console.log(chalks.green("Search Found!"))
+            console.log(`Title: ${entry.title}, Body: ${entry.body}` ) ;
+
+         });
+    }
+
+    
+    
+    
+})
+
+    
+    
+.parse();
         
    
